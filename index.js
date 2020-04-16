@@ -270,7 +270,7 @@ fs.readJson(opts.config).then(function (config) {
                     notes: file.desc,
                     layout: 'board'
                 }).then(result => {
-                    console.log(`Created ${result.name} project in your team. ${JSON.stringify(result)}`);
+                    console.log(`Created ${result.name} project in your team.`);
                     projectData = result;
                     asanaData.projects.push(result);
                 });
@@ -391,7 +391,7 @@ fs.readJson(opts.config).then(function (config) {
                             }
 
                             if (parseInt(card.badges.comments, 10) > 0) {
-								console.log(`getting trello card actions for card ${card.id}`);
+                                console.log(`getting trello card actions for card ${card.id}`);
                                 promises.push(
                                     // Trello export has limitation for count of actions as 1000. so we need to request directly trello API.
                                     trello.getAsync(`/1/cards/${card.id}/actions?limit=1000`).then(result => {
