@@ -255,11 +255,11 @@ fs.readJson(opts.config).then(function (config) {
                     return project.name === file.name;
                 });
 
-                promise = client.tasks.findByProject(projectData.id).then(fetch).then(tasks => {
+                promise = client.tasks.findByProject(projectData.gid).then(fetch).then(tasks => {
                     console.log(`Loaded exists ${tasks.length} tasks.`);
                     asanaData.tasks = tasks;
 
-                    return client.sections.findByProject(projectData.id);
+                    return client.sections.findByProject(projectData.gid);
                 }).then(sections => {
                     console.log(`Loaded exists ${sections.length} sections.`);
                     asanaData.sections = sections;
@@ -270,7 +270,7 @@ fs.readJson(opts.config).then(function (config) {
                     notes: file.desc,
                     layout: 'board'
                 }).then(result => {
-                    console.log(`Created ${result.name} project in your team.`);
+                    console.log(`Created ${result.name} project in your team. ${JSON.stringify(result)}`);
                     projectData = result;
                     asanaData.projects.push(result);
                 });
@@ -283,7 +283,7 @@ fs.readJson(opts.config).then(function (config) {
                     });
 
                     if (matchedSection) {
-                        listToSectionMap[list.id] = matchedSection.id;
+                        listToSectionMap[list.id] = matchedSection.gid;
                         return false;
                     } else {
                         return true;
@@ -292,10 +292,11 @@ fs.readJson(opts.config).then(function (config) {
 
                 // Creates sections in order
                 return Promise.mapSeries(filteredList, list => {
-                    return client.sections.createInProject(projectData.id, {
+                    console.log(`create sections`);
+                    return client.sections.createInProject(projectData.gid, {
                         name: list.name
                     }).then(result => {
-                        listToSectionMap[list.id] = result.id;
+                        listToSectionMap[list.id] = result.gid;
                         console.log(`Created ${list.name} section.`);
                     });
                 });
@@ -348,6 +349,8 @@ fs.readJson(opts.config).then(function (config) {
 
                     // Creates tasks
                     return Promise.mapSeries(filteredCards, card => {
+                        console.log(`creating task for card ${JSON.stringify(card)}...`);
+
                         return client.tasks.create({
                             assignee: card.idMembers.length ? convertMap(_.first(card.idMembers), config.member) : null,
                             due_at: card.due,
@@ -355,11 +358,11 @@ fs.readJson(opts.config).then(function (config) {
                             name: card.name,
                             notes: card.desc,
                             memberships: [{
-                                project: projectData.id,
+                                project: projectData.gid,
                                 section: convertMap(card.idList, listToSectionMap)
                             }],
                             tags: card.idLabels.length ? convertMap(card.idLabels, labelToTagMap) : [],
-                            projects: [ projectData.id ]
+                            projects: [ projectData.gid ]
                         }).then(result => {
                             var promises = [];
                             var taskData = result;
@@ -374,12 +377,12 @@ fs.readJson(opts.config).then(function (config) {
                                 promises.push(
                                     Promise.mapSeries(convertMap(card.idChecklists.reverse(), checklistMap), checklist => {
                                         return Promise.mapSeries(checklist.checkItems.reverse(), item => {
-                                            return client.tasks.addSubtask(taskData.id, {
+                                            return client.tasks.addSubtask(taskData.gid, {
                                                 name: item.name,
                                                 completed: item.state !== 'incomplete'
                                             });
                                         }).then(function () {
-                                            return client.tasks.addSubtask(taskData.id, {
+                                            return client.tasks.addSubtask(taskData.gid, {
                                                 name: `${checklist.name}:`
                                             });
                                         });
@@ -388,6 +391,7 @@ fs.readJson(opts.config).then(function (config) {
                             }
 
                             if (parseInt(card.badges.comments, 10) > 0) {
+								console.log(`getting trello card actions for card ${card.id}`);
                                 promises.push(
                                     // Trello export has limitation for count of actions as 1000. so we need to request directly trello API.
                                     trello.getAsync(`/1/cards/${card.id}/actions?limit=1000`).then(result => {
@@ -402,7 +406,7 @@ fs.readJson(opts.config).then(function (config) {
 
                                             text = `${memberName}: ${text} from Trello`;
 
-                                            return client.tasks.addComment(taskData.id, {
+                                            return client.tasks.addComment(taskData.gid, {
                                                 text: text
                                             });
                                         });
@@ -414,7 +418,7 @@ fs.readJson(opts.config).then(function (config) {
                                 promises.push(
                                     Promise.mapSeries(card.attachments, attachment => {
                                         return fetchImage(attachment.url).then(image => {
-                                            return uploadImageToAsana(taskData.id, image, path.basename(attachment.url));
+                                            return uploadImageToAsana(taskData.gid, image, path.basename(attachment.url));
                                         }).catch(reason => {
                                             console.log('Failed to upload attachment', reason);
                                         });
