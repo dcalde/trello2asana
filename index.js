@@ -292,7 +292,6 @@ fs.readJson(opts.config).then(function (config) {
 
                 // Creates sections in order
                 return Promise.mapSeries(filteredList, list => {
-                    console.log(`create sections`);
                     return client.sections.createInProject(projectData.gid, {
                         name: list.name
                     }).then(result => {
@@ -308,7 +307,7 @@ fs.readJson(opts.config).then(function (config) {
                     });
 
                     if (matchedTag) {
-                        labelToTagMap[label.id] = matchedTag.id;
+                        labelToTagMap[label.id] = matchedTag.gid;
                         return false;
                     } else {
                         return true;
@@ -324,9 +323,9 @@ fs.readJson(opts.config).then(function (config) {
                         color: LABEL_COLOR[label.color],
                         notes: 'Created by Trello'
                     }).then(result => {
-                        labelToTagMap[label.id] = result.id;
+                        labelToTagMap[label.id] = result.gid;
                         asanaData.tags.push(result);
-                        console.log(`Created ${result.name}(${result.id}) tag.`);
+                        console.log(`Created ${result.name}(${result.gid}) tag.`);
                     });
                 }, {
                     concurrency: 3
@@ -338,7 +337,7 @@ fs.readJson(opts.config).then(function (config) {
                         });
 
                         if (matchedTask) {
-                            cardToTaskMap[card.id] = matchedTask.id
+                            cardToTaskMap[card.id] = matchedTask.gid
                             return false;
                         } else {
                             return true;
@@ -348,9 +347,7 @@ fs.readJson(opts.config).then(function (config) {
                     console.log(`Creating ${filteredCards.length} of ${file.cards.length} tasks...`);
 
                     // Creates tasks
-                    return Promise.mapSeries(filteredCards, card => {
-                        console.log(`creating task for card ${JSON.stringify(card)}...`);
-
+                    return Promise.mapSeries(filteredCards, card => {					
                         return client.tasks.create({
                             assignee: card.idMembers.length ? convertMap(_.first(card.idMembers), config.member) : null,
                             due_at: card.due,
